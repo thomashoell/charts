@@ -32,6 +32,17 @@ Create chart name and version as used by the chart label.
 {{- end -}}
 
 {{/*
+Return the appropriate apiVersion for ingress.
+*/}}
+{{- define "awx.ingress.apiVersion" -}}
+{{- if semverCompare "<1.14-0" .Capabilities.KubeVersion.GitVersion -}}
+{{- print "extensions/v1beta1" -}}
+{{- else -}}
+{{- print "networking.k8s.io/v1beta1" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Common volume mounts
 */}}
 {{- define "awx.volumeMounts" -}}
@@ -67,4 +78,70 @@ Common volume definitions
 - name: confd
   secret:
     secretName: {{ include "awx.fullname" . }}-confd
+{{- end -}}
+
+{{/*
+Create PostgreSQL container image/tag depending on whether postgres chart is enabled or not
+*/}}
+{{- define "postgres-image" -}}
+{{- if .Values.postgresql.enabled -}}
+{{- printf "%s:%s" .Values.postgresql.image.repository .Values.postgresql.image.tag -}}
+{{- else -}}
+{{- printf "%s:%s" "bitnami/postgresql" "latest" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Create PostgreSQL host name depending on whether an external database is used or not
+*/}}
+{{- define "awx-db-host" -}}
+{{- if .Values.postgresql.enabled -}}
+{{- printf "%s-%s" .Release.Name "postgresql" -}}
+{{- else -}}
+{{- .Values.db.host -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Create PostgreSQL port depending on whether an external database is used or not
+*/}}
+{{- define "awx-db-port" -}}
+{{- if .Values.postgresql.enabled -}}
+{{- .Values.postgresql.service.port -}}
+{{- else -}}
+{{- .Values.db.port -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Create PostgreSQL database name depending on whether an external database is used or not
+*/}}
+{{- define "awx-db-name" -}}
+{{- if .Values.postgresql.enabled -}}
+{{- .Values.postgresql.postgresqlDatabase -}}
+{{- else -}}
+{{- .Values.db.name -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Create PostgreSQL database name depending on whether an external database is used or not
+*/}}
+{{- define "awx-db-user" -}}
+{{- if .Values.postgresql.enabled -}}
+{{- .Values.postgresql.postgresqlUsername -}}
+{{- else -}}
+{{- .Values.db.user -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Create PostgreSQL database name depending on whether an external database is used or not
+*/}}
+{{- define "awx-db-password" -}}
+{{- if .Values.postgresql.enabled -}}
+{{- .Values.postgresql.postgresqlPassword -}}
+{{- else -}}
+{{- .Values.db.password -}}
+{{- end -}}
 {{- end -}}

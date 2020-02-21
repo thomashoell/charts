@@ -46,6 +46,12 @@ task:
   tolerations: []
   affinity: {}
 
+#db:
+#  host: localhost
+#  port: 5432
+#  user: awx
+#  password: awx
+
 secret_key: awxsecret
 default_admin_user: admin
 default_admin_password: password
@@ -102,8 +108,6 @@ postgresql:
   postgresqlUsername: awx
   postgresqlPassword: pgpassword
   postgresqlDatabase: awx
-  # Uncomment to use a different host for postgresql instance
-  # postgresqlHost:
   persistence:
     enabled: true
     # size: 50Gi

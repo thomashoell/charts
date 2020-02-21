@@ -1,9 +1,9 @@
-DATABASE_USER={{ .Values.postgresql.postgresqlUsername }}
-DATABASE_NAME={{ .Values.postgresql.postgresqlDatabase }}
-DATABASE_HOST={{ .Release.Name }}-postgresql
-DATABASE_PORT={{ .Values.postgresql.service.port }}
-DATABASE_PASSWORD={{ .Values.postgresql.postgresqlPassword }}
-DATABASE_ADMIN_PASSWORD={{ .Values.postgresql.postgresqlPassword }}
+DATABASE_USER={{ include "awx-db-user" . }}
+DATABASE_NAME={{ include "awx-db-name" . }}
+DATABASE_HOST={{ include "awx-db-host" . }}
+DATABASE_PORT={{ include "awx-db-port" . }}
+DATABASE_PASSWORD={{ include "awx-db-password" . }}
+DATABASE_ADMIN_PASSWORD={{ include "awx-db-password" . }}
 MEMCACHED_HOST={{ .Release.Name }}-memcached
 MEMCACHED_PORT=11211
 RABBITMQ_HOST={{ .Release.Name }}-rabbitmq
