@@ -18,24 +18,49 @@ spec:
       labels:
         app.kubernetes.io/name: {{ include "awx.name" . }}-web
         app.kubernetes.io/instance: {{ .Release.Name }}
+      annotations:
+              {{- $confd_hash := include (print $.Template.BasePath "/confd-secret.yaml") . | sha256sum }}
+              {{- $secret_hash := include (print $.Template.BasePath "/secret-key-secret.yaml") . | sha256sum }}
+              {{- $settings_hash := include (print $.Template.BasePath "/settings-configmap.yaml") . | sha256sum }}
+              {{- $config_hash := printf "%s%s%s" $confd_hash $secret_hash $settings_hash | sha256sum}}
+        checksum/config: {{ $config_hash }}
     spec:
+      initContainers:
+        - name: check-mq-ready
+          image: {{ .Values.rabbitmq.image.repository }}:{{ .Values.rabbitmq.image.tag }}
+          env:
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-rabbitmq
+                  key: rabbitmq-password
+          command:
+            - /bin/bash
+            - -c
+            - "until test $(curl --connect-timeout 5 --silent --show-error --fail http://admin:${RABBITMQ_PASSWORD}@{{ .Release.Name }}-rabbitmq:{{ .Values.rabbitmq.service.managerPort }}/api/healthchecks/node) == '{\"status\":\"ok\"}'; do echo waiting for rabbitmq; sleep 2; done;"
+        - name: check-mc-ready
+          image: busybox:latest
+          command:
+            - /bin/sh
+            - -c
+            - "until echo stats | nc {{ .Release.Name }}-memcached 11211; do echo waiting for memcached; sleep 2; done;"
       containers:
-        - name: awx
+        - name: awx-web
           image: "{{ .Values.web.image.repository }}:{{ .Values.web.image.tag }}"
           imagePullPolicy: {{ .Values.web.image.pullPolicy }}
           ports:
             - containerPort: 8052
               name: http
-          # livenessProbe:
-          #   initialDelaySeconds: 5
-          #   httpGet:
-          #     path: /
-          #     port: http
-          # readinessProbe:
-          #   initialDelaySeconds: 10
-          #   httpGet:
-          #     path: /
-          #     port: http
+          livenessProbe:
+            initialDelaySeconds: 10
+            httpGet:
+              path: /api/v2/ping/
+              port: http
+          readinessProbe:
+            initialDelaySeconds: 10
+            httpGet:
+              path: /api/v2/ping/
+              port: http
           volumeMounts:
 {{ include "awx.volumeMounts" . | indent 12 }}
 {{- if .Values.web.extraVolumeMounts }}

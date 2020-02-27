@@ -85,7 +85,9 @@ Create PostgreSQL container image/tag depending on whether postgres chart is ena
 */}}
 {{- define "postgres-image" -}}
 {{- if .Values.postgresql.enabled -}}
-{{- printf "%s:%s" .Values.postgresql.image.repository .Values.postgresql.image.tag -}}
+{{/*The following lines are necessary to avoid having the image tag treated as a float like bitnami/postgresql:%!s(float64=9.6)*/}}
+{{- $imageTag := .Values.postgresql.image.tag | quote -}}
+{{- printf "%s:%s" .Values.postgresql.image.repository $imageTag | replace "\"" "" -}}
 {{- else -}}
 {{- printf "%s:%s" "bitnami/postgresql" "latest" -}}
 {{- end -}}

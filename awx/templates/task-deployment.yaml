@@ -19,12 +19,69 @@ spec:
         app.kubernetes.io/name: {{ include "awx.name" . }}-task
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
+      initContainers:
+      - name: check-mq-ready
+        image: {{ .Values.rabbitmq.image.repository }}:{{ .Values.rabbitmq.image.tag }}
+        env:
+        - name: RABBITMQ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-rabbitmq
+              key: rabbitmq-password
+        command:
+          - /bin/bash
+          - -c
+          - "until test $(curl --connect-timeout 5 --silent --show-error --fail http://admin:${RABBITMQ_PASSWORD}@{{ .Release.Name }}-rabbitmq:{{ .Values.rabbitmq.service.managerPort }}/api/healthchecks/node) == '{\"status\":\"ok\"}'; do echo waiting for rabbitmq; sleep 2; done;"
+      - name: check-mc-ready
+        image: busybox:latest
+        command:
+          - /bin/sh
+          - -c
+          - "until echo stats | nc {{ .Release.Name }}-memcached 11211; do echo waiting for memcached; sleep 2; done;"
+      - name: check-db-ready
+        image: {{ include "postgres-image" . }}
+        command:
+          - sh
+          - -c
+          - "until pg_isready -h {{ include "awx-db-host" . }} -U {{ include "awx-db-user" . }} -p {{ include "awx-db-port" . }}; do echo waiting for database; sleep 2; done;"
+      - name: awx-migrate
+        image: "{{ .Values.task.image.repository }}:{{ .Values.task.image.tag }}"
+        imagePullPolicy: {{ .Values.task.image.pullPolicy }}
+        command:
+          - /usr/bin/awx-manage
+          - migrate
+          - --noinput
+        volumeMounts:
+{{ include "awx.volumeMounts" . | indent 12 }}
+        resources:
+          {{ toYaml .Values.task.resources | indent 12 }}
       containers:
-        - name: awx
+        - name: awx-task
           image: "{{ .Values.task.image.repository }}:{{ .Values.task.image.tag }}"
           imagePullPolicy: {{ .Values.task.image.pullPolicy }}
+          env:
+            - name: AWX_SKIP_MIGRATIONS
+              value: "true"
           command:
             - /usr/bin/launch_awx_task.sh
+          readinessProbe:
+            exec:
+              command:
+                - /usr/bin/awx-manage
+                - stats
+            initialDelaySeconds: 30
+            failureThreshold: 5
+            timeoutSeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - /usr/bin/awx-manage
+                - stats
+            initialDelaySeconds: 30
+            failureThreshold: 5
+            timeoutSeconds: 5
+            periodSeconds: 10
           volumeMounts:
 {{ include "awx.volumeMounts" . | indent 12 }}
           resources:
